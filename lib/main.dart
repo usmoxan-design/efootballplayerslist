@@ -1,3 +1,4 @@
+import 'package:efootballtest/screens/categories_screen.dart';
 import 'package:efootballtest/widgets/player_card_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,13 +29,84 @@ class EfootballApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
       ),
-      home: const PlayersScreen(),
+      home: const MainScreen(),
+    );
+  }
+}
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+  String? _selectedCategoryUrl;
+
+  // Key to force PlayersScreen refresh when category changes
+  Key _playersScreenKey = UniqueKey();
+
+  void _onCategorySelected(String url) {
+    setState(() {
+      _selectedCategoryUrl = url;
+      _currentIndex = 1; // Switch to Players tab
+      _playersScreenKey = UniqueKey(); // Refresh players screen
+    });
+  }
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          // Tab 0: Categories
+          Scaffold(
+            appBar: AppBar(
+              title: const Text('Categories'),
+              backgroundColor: const Color(0xFF1E1B4B),
+            ),
+            body: CategoriesScreen(onCategorySelected: _onCategorySelected),
+          ),
+          // Tab 1: Players
+          PlayersScreen(
+            key: _playersScreenKey,
+            initialUrl: _selectedCategoryUrl,
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: _onTabTapped,
+        backgroundColor: const Color(0xFF1E1B4B),
+        selectedItemColor: const Color(0xFF6366F1),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            label: 'Categories',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_alt_rounded),
+            label: 'Players',
+          ),
+        ],
+      ),
     );
   }
 }
 
 class PlayersScreen extends StatefulWidget {
-  const PlayersScreen({super.key});
+  final String? initialUrl;
+  const PlayersScreen({super.key, this.initialUrl});
 
   @override
   State<PlayersScreen> createState() => _PlayersScreenState();
@@ -44,7 +116,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
   final PesService _pesService = PesService();
   List<Player> _players = [];
   int _currentPage = 1;
-  int _totalPages = 10; // Estimate, adjust based on actual data
+  int _totalPages = 10; // Estimate
   bool _isLoading = false;
 
   @override
@@ -61,7 +133,11 @@ class _PlayersScreenState extends State<PlayersScreen> {
     });
 
     try {
-      final newPlayers = await _pesService.fetchPlayers(page: _currentPage);
+      final newPlayers = await _pesService.fetchPlayers(
+        page: _currentPage,
+        customUrl:
+            widget.initialUrl, // Use custom URL if passed from categories
+      );
       setState(() {
         _players = newPlayers;
         _isLoading = false;
@@ -159,7 +235,8 @@ class _PlayersScreenState extends State<PlayersScreen> {
                 ),
 
           // Pagination
-          SliverToBoxAdapter(child: _buildPagination()),
+          if (_players.isNotEmpty)
+            SliverToBoxAdapter(child: _buildPagination()),
 
           // Bottom spacing
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -430,6 +507,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
           color: enabled
               ? const Color(0xFF6366F1).withOpacity(0.2)
               : Colors.transparent,
+
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: enabled

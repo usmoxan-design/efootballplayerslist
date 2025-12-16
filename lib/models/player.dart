@@ -12,4 +12,8 @@ class Player {
   });
 
   String get imageUrl => 'https://pesdb.net/assets/img/card/f$id.png';
+  String get imageFlipUrl => 'https://pesdb.net/assets/img/card/b$id.png';
+  String get imageMaxUrl => 'https://pesdb.net/assets/img/card/f${id}max.png';
+  String get imageMaxFlipUrl =>
+      'https://pesdb.net/assets/img/card/b${id}max.png';
 }

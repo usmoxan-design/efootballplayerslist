@@ -8,6 +8,7 @@ class PlayerCardWidget extends StatefulWidget {
   final PlayerDetail? detail;
   final VoidCallback? onFlip;
   final bool? isFlipped;
+  final bool isMaxLevel;
 
   const PlayerCardWidget({
     super.key,
@@ -15,6 +16,7 @@ class PlayerCardWidget extends StatefulWidget {
     this.detail,
     this.onFlip,
     this.isFlipped,
+    this.isMaxLevel = false,
   });
 
   @override
@@ -102,6 +104,9 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget>
   }
 
   Widget _buildFrontCard() {
+    final imageUrl = widget.isMaxLevel
+        ? widget.player.imageMaxUrl
+        : widget.player.imageUrl;
     return Container(
       width: 220,
       height: 320,
@@ -119,7 +124,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget>
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: Image.network(
-          'https://corsproxy.io/?${Uri.encodeComponent(widget.player.imageUrl)}',
+          'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}',
           fit: BoxFit.contain,
           headers: const {
             'User-Agent':
@@ -177,13 +182,16 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget>
       );
     }
 
+    final imageUrl = widget.isMaxLevel
+        ? widget.player.imageMaxFlipUrl
+        : widget.player.imageFlipUrl;
+
     return Container(
       width: 220,
       height: 320,
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.white24, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.5),
@@ -192,81 +200,45 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget>
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Playing Style Section
-            const Text(
-              'Playing Style',
-              style: TextStyle(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.network(
+          'https://corsproxy.io/?${Uri.encodeComponent(imageUrl)}',
+          fit: BoxFit.contain,
+          headers: const {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                    : null,
                 color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              detail.playingStyle,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-
-            // Player Skills Section
-            const Text(
-              'Player Skills',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: SingleChildScrollView(
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[900],
+              child: const Center(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: detail.skills.map((skill) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        skill,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image, color: Colors.white54, size: 40),
+                    SizedBox(height: 8),
+                    Text(
+                      "Image Not Found",
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // AI Playing Styles Section
-            if (detail.info.containsKey('AI Playing Styles')) ...[
-              const Text(
-                'AI Playing Styles',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              ...detail.info['AI Playing Styles']!.split('\n').map((style) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    style,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                );
-              }),
-            ],
-          ],
+            );
+          },
         ),
       ),
     );

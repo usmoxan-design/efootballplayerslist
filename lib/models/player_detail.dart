@@ -17,11 +17,15 @@ class PlayerDetail {
     required this.age,
     required this.foot,
     required this.stats,
-    this.info = const {}, // For non-numeric details like Team, League, etc.
+    this.info = const {},
     this.playingStyle = 'Unknown',
     this.skills = const [],
+    this.suggestedPoints = const {},
+    this.description = '',
   });
 
   /// Helper to access info safely
   final Map<String, String> info;
+  final Map<String, int> suggestedPoints;
+  final String description;
 }

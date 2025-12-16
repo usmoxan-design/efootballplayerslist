@@ -17,17 +17,34 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
   final PesService _pesService = PesService();
   late Future<PlayerDetail> _detailFuture;
   bool _isFlipped = false;
+  bool _isMaxLevel = false;
 
   @override
   void initState() {
     super.initState();
-    _detailFuture = _pesService.fetchPlayerDetail(widget.player);
+    _loadPlayerDetail();
+  }
+
+  void _loadPlayerDetail() {
+    _detailFuture = _pesService.fetchPlayerDetail(
+      widget.player,
+      mode: _isMaxLevel ? 'max_level' : 'level1',
+    );
   }
 
   void _toggleFlip() {
     setState(() {
       _isFlipped = !_isFlipped;
     });
+  }
+
+  void _toggleLevel(bool isMax) {
+    if (_isMaxLevel != isMax) {
+      setState(() {
+        _isMaxLevel = isMax;
+        _loadPlayerDetail();
+      });
+    }
   }
 
   @override
@@ -69,6 +86,34 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Level Toggle Buttons
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildLevelChip(
+                          'Level 1',
+                          !_isMaxLevel,
+                          () => _toggleLevel(false),
+                        ),
+                        _buildLevelChip(
+                          'Max Level',
+                          _isMaxLevel,
+                          () => _toggleLevel(true),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Container for the main layout
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -94,6 +139,26 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
     );
   }
 
+  Widget _buildLevelChip(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLeftColumn(PlayerDetail detail) {
     return Column(
       children: [
@@ -103,14 +168,22 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
           detail: detail,
           onFlip: _toggleFlip,
           isFlipped: _isFlipped,
+          isMaxLevel: _isMaxLevel,
         ),
         const SizedBox(height: 10),
         const Text(
           "Standard",
           style: TextStyle(color: Colors.white70, fontSize: 16),
         ),
+        if (detail.description.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            detail.description,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 20),
-
         // Info Table
         _buildInfoRow('Player Name', widget.player.name),
         _buildInfoRow('Squad Number', detail.stats['Squad Number'] ?? '-'),
@@ -130,11 +203,6 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
         _buildInfoRow('Foot', detail.foot),
         _buildInfoRow('Maximum Level', detail.stats['Maximum Level'] ?? '-'),
 
-        // Rating usually shown in stats, but screenshot has it here too? "Rating: C" or similar?
-        // Screenshot has "Rating: C". This is Form/Condition Rating?
-        // Or "Overall Rating: 85" is at top of stats.
-        // Let's assume Form/Condition is separate.
-        // _buildInfoRow('Rating', detail.info['Condition'] ?? '-'),
         const SizedBox(height: 10),
         // Position Row with Green Badge
         Row(
@@ -182,10 +250,13 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
 
     // Overall Rating Header
     final overallRating = detail.stats['Overall Rating'] ?? '80';
+    final overallVal = _parseStatValue(overallRating);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_isMaxLevel) _buildSuggestedPoints(detail.suggestedPoints),
+
         // Overall Rating
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -197,7 +268,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
             Text(
               overallRating,
               style: TextStyle(
-                color: _getStatColor(int.tryParse(overallRating) ?? 0),
+                color: _getStatColor(overallVal),
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -213,7 +284,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
           itemCount: statEntries.length,
           itemBuilder: (context, index) {
             final entry = statEntries[index];
-            final val = int.tryParse(entry.value) ?? 0;
+            final val = _parseStatValue(entry.value);
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -283,6 +354,15 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
         ],
       ],
     );
+  }
+
+  int _parseStatValue(String value) {
+    // Extract last number from strings like "95" or "(+10) 95"
+    final match = RegExp(r'(\d+)$').firstMatch(value);
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 0;
+    }
+    return 0;
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -430,5 +510,94 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSuggestedPoints(Map<String, int> points) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Suggested Progression",
+            style: TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+
+            child: Row(
+              children: points.entries.map((e) {
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF240090), Color(0xFF0C0032)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blueAccent.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        e.key, // passing, shooting etc
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            _getStatIcon(e.key),
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${e.value}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getStatIcon(String key) {
+    key = key.toLowerCase();
+    if (key.contains('shooting')) return Icons.gps_fixed;
+    if (key.contains('passing')) return Icons.sports_soccer; // approximations
+    if (key.contains('dribbling'))
+      return Icons.change_history; // cone? used built-in
+    if (key.contains('dexterity')) return Icons.compare_arrows;
+    if (key.contains('lower body'))
+      return Icons.directions_run; // shoe equivalent
+    if (key.contains('aerial') || key.contains('defending'))
+      return Icons.shield;
+    if (key.contains('gk')) return Icons.pan_tool;
+    return Icons.circle;
   }
 }
